@@ -50,6 +50,14 @@ local({
         options(op)
         unlink(c(v, inst), recursive = TRUE)
     }, add = TRUE)
+    # A dry run still resolves the destination room, which builds a
+    # real Matrix client from this machine's config. Replace the lookup
+    # with a fixed room so the test needs no config.
+    ensure_orig <- get("ensure_matrix_room", envir = asNamespace("cerebro"))
+    assignInNamespace("ensure_matrix_room", function(...) "!stub:ex",
+                      "cerebro")
+    on.exit(assignInNamespace("ensure_matrix_room", ensure_orig, "cerebro"),
+            add = TRUE)
 
     writeLines(c("---", "source: '!ping:ex'", "title: '!ping:ex'", "---",
                  "# !ping:ex", "",
