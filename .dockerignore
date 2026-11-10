@@ -1,0 +1,6 @@
+.git
+.github
+.claude
+.corteza
+*.Rcheck
+*.tar.gz

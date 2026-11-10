@@ -1,0 +1,39 @@
+Package: cerebro
+Type: Package
+Title: AI Agent Toolchain for R
+Version: 0.2.0
+Authors@R: c(
+    person("Troy", "Hernandez", role = c("aut", "cre"),
+           email = "troy@cornball.ai",
+           comment = c(ORCID = "0009-0005-4248-604X")),
+    person("cornball.ai", role = "cph"))
+Description: Meta-package that installs the cerebro AI agent toolchain:
+    'saber' (AST code analysis), 'pensar' (knowledge graph), 'corteza'
+    (agent runtime), and 'llm.api' (Large Language Model connectivity).
+    Optional integration with 'hacer' supports plain-text ToDo planning.
+License: Apache License (>= 2)
+URL: https://github.com/cornball-ai/cerebro
+BugReports: https://github.com/cornball-ai/cerebro/issues
+Depends:
+    R (>= 4.0),
+    corteza (>= 0.7.1.77),
+    llm.api,
+    pensar,
+    saber (>= 0.7.2.2)
+Imports:
+    chat.api (>= 0.1.0.3),
+    digest,
+    jsonlite,
+    stats,
+    tools,
+    utils,
+    yaml
+Suggests:
+    fortunes,
+    hacer,
+    mx.client,
+    simplermarkdown,
+    tinytest
+VignetteBuilder: simplermarkdown
+Additional_repositories: https://cornball-ai.github.io/drat
+Encoding: UTF-8

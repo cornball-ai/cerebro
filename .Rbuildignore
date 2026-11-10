@@ -1,0 +1,9 @@
+^CLAUDE\.md$
+^\.github$
+^\.claude$
+^.*[.]Rcheck$
+^README\.md$
+^AGENTS\.md$
+^\.corteza$
+^Dockerfile$
+^\.dockerignore$

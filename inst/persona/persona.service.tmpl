@@ -1,0 +1,15 @@
+[Unit]
+Description={{name}} cerebro instance
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment="CEREBRO_INSTANCE_DIR={{instance_dir_systemd}}"
+Environment="HACER_REPO={{todo_dir_systemd}}"
+ExecStart=/usr/bin/r -e "cerebro::run(Sys.getenv('CEREBRO_INSTANCE_DIR'))"
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

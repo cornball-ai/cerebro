@@ -1,0 +1,10 @@
+[Unit]
+Description=Schedule {{name}} cerebro service
+
+[Timer]
+OnCalendar={{timer_calendar_systemd}}
+Persistent=true
+Unit={{name}}.service
+
+[Install]
+WantedBy=timers.target

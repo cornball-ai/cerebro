@@ -1,0 +1,69 @@
+name: ci
+
+on:
+  pull_request:
+
+env:
+  _R_CHECK_FORCE_SUGGESTS_: "false"
+  # run.sh's own gate: R CMD check exits 0 on a WARNING and run_tests
+  # passes that through, so the vignette WARNINGs below sat under a
+  # green tick for a day. Set, run_tests greps 00check.log for WARNING
+  # and fails the job. NOTEs still pass; read the Status line.
+  WARNINGS_ARE_ERRORS: "true"
+  # r-ci's defaults skip vignettes on both sides, and a package with a
+  # vignette source then checks with two WARNINGs (no inst/doc, no
+  # rendered output). Build and check them; the runners have pandoc and
+  # the dependency step installs simplermarkdown.
+  R_BUILD_ARGS: "--no-manual"
+  R_CHECK_ARGS: "--no-manual --as-cran"
+
+jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: macos-14}
+          - {os: ubuntu-latest}
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup
+        uses: eddelbuettel/github-actions/r-ci@master
+        with:
+          # r2u binaries through rapt rather than bspm on ubuntu; the
+          # macOS leg reads no backend.
+          backend: RAPT
+
+      - name: Dependencies
+        run: |
+          # cornball.ai packages come from the drat alongside CRAN: R takes
+          # the highest version across both, so the floors above CRAN's
+          # releases (corteza, saber, chat.api) resolve there. Suggests are
+          # listed too, for the vignette builder and the test runner.
+          #
+          # On ubuntu, rapt answers install.packages() with r2u's apt
+          # binaries of the CRAN releases, matched by package name and
+          # never by version (bspm under r-ci did the same), so the
+          # drat's newer corteza, saber and chat.api would not be
+          # installed and the check would fail on the floors. The first
+          # call pulls everything (binaries where r2u has them); the
+          # second installs the drat packages from source with the hook
+          # disabled, into the site library that comes first on
+          # .libPaths(). utils::install.packages there, not the bare
+          # name: rapt enables itself from /etc/R/profile.d before utils
+          # is attached, so the attached copy on the search path is the
+          # hook and rapt::disable() restores only the namespace binding.
+          # On macOS there is no hook and both calls are plain source
+          # installs. The versions print last, after install_deps, so
+          # nothing replaces them unseen.
+          Rscript -e 'install.packages(c("corteza", "saber", "llm.api", "pensar", "chat.api", "hacer", "mx.client", "fortunes", "simplermarkdown", "tinytest"), repos = c("https://cornball-ai.github.io/drat", "https://cloud.r-project.org"))'
+          Rscript -e 'if (isTRUE(getOption("rapt.enabled"))) rapt::disable(); utils::install.packages(c("corteza", "saber", "llm.api", "pensar", "chat.api", "hacer"), repos = "https://cornball-ai.github.io/drat", type = "source")'
+          ./run.sh install_deps
+          Rscript -e 'for (p in c("corteza", "saber", "chat.api")) cat(p, as.character(packageVersion(p)), "\n")'
+
+      - name: Test
+        run: ./run.sh run_tests
