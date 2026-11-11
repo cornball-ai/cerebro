@@ -259,6 +259,13 @@ resolve_room <- function(room, instance_dir = NULL, matrix_config = NULL,
 #' resolves to a non-space room is an error rather than something to
 #' repair in place.
 #'
+#' Personas share a space: one creates it and the others find it by name.
+#' Filing a room under a space is a state event on the space, which the
+#' server's default power levels reserve for the creator, so the creator
+#' lowers that one event to the member level right after creation. A
+#' space created elsewhere needs the same grant from whoever owns it, or
+#' every other persona's filing falls back to a per-room invite.
+#'
 #' @param name Non-empty space display name.
 #' @param topic Character or NULL.
 #' @param invite Character vector of Matrix user IDs, invited once at
@@ -311,6 +318,7 @@ ensure_matrix_space <- function(name, topic = NULL, invite = character(),
             invite = as.character(invite),
             creation_content = list(type = "m.space"))
         message("cerebro: created Matrix space ", name, " -> ", sid)
+        .open_space_filing(client, sid, name)
     }
     if (!is.null(instance_dir)) {
         state <- read_instance_state(instance_dir)
@@ -320,6 +328,38 @@ ensure_matrix_space <- function(name, topic = NULL, invite = character(),
         write_instance_state(state, instance_dir)
     }
     sid
+}
+
+# Let every member of a new space file rooms under it.
+#
+# m.space.child is a state event, so the default power levels want 50
+# for it, and from room version 12 the creator holds that power
+# implicitly while every other member sits at 0. A second persona
+# sharing the space then fails each filing and falls back to the
+# per-room invite the space exists to remove. Only the creator can
+# lower the level, which is why this runs at creation and not in
+# .file_in_space(). Read-merge-write: a power_levels event replaces the
+# whole content, and what the server set at creation stays as it was.
+.open_space_filing <- function(client, space_id, name) {
+    ok <- tryCatch({
+        levels <- chat.api::chat_get_state(client, space_id,
+            "m.room.power_levels") %||% list()
+        # An empty object reads back as an empty unnamed list and would
+        # go out as [] where the server expects {}. Absent means the same
+        # default, so drop it.
+        levels <- levels[lengths(levels) > 0L]
+        events <- levels$events %||% list()
+        events[["m.space.child"]] <- 0L
+        levels$events <- events
+        chat.api::chat_set_state(client, space_id, "m.room.power_levels",
+                                 levels)
+        TRUE
+    }, error = function(e) {
+        message("cerebro: could not open ", name,
+                " to filing by its members: ", conditionMessage(e))
+        FALSE
+    })
+    invisible(ok)
 }
 
 # A server to route a space child through, for m.space.child's `via`.
