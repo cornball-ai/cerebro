@@ -37,10 +37,23 @@ invisible to a service. When not supplied, a top-level
 skip startup files, so empty falls through), then
 \code{~/.Renviron}. Passing NULL, or setting \code{renviron: false}
 in config, skips loading. Values in the file override inherited
-environment variables.}
+environment variables.
+
+The loop ends on an interrupt and nothing else, so a service stops the
+process with SIGINT. R has no handler for SIGTERM, and as a container's
+PID 1 the process gets no default action for it either, so SIGTERM is
+dropped and the runtime falls back to SIGKILL after its timeout. SIGINT
+is R's own interrupt: it is raised at the next safe point (the Matrix
+long-poll, the idle sleep, a routine's R code; a shell routine's child
+finishes first), unwound through \code{on.exit} handlers, and caught by
+the loop, so the process exits normally. That needs R's own signal
+handlers, which \code{Rscript} installs and littler's \code{r} does
+not (it sets \code{R_SignalHandlers = 0}): a service started with
+\code{r -e} drops the signal outside \code{Sys.sleep()} and ends in
+the runtime's SIGKILL after all.}
 }
 \value{
-Never returns under normal use; loops until interrupted.
+\code{NULL}, invisibly, once interrupted; until then it loops.
 }
 \description{
 Reads \code{<instance_dir>/config.yaml}, registers each routine via
