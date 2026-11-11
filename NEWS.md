@@ -1,3 +1,14 @@
+# cerebro 0.2.0.2
+
+- `run()` returns on an interrupt instead of dying with the process. A
+  container stops its PID 1 with a signal R has to handle itself:
+  SIGTERM has no handler and is dropped, so podman fell back to SIGKILL
+  after its timeout on every restart. SIGINT is R's own interrupt,
+  raised at the next safe point and unwound through `on.exit` handlers;
+  the loop now catches it, logs it and returns, so the process exits
+  normally. That needs R's signal handlers, which `Rscript` installs
+  and littler's `r` does not.
+
 # cerebro 0.2.0.1
 
 - `ensure_matrix_space()` lowers the power level for filing a room under

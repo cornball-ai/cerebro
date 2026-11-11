@@ -47,7 +47,20 @@
 #'   in config, skips loading. Values in the file override inherited
 #'   environment variables.
 #'
-#' @return Never returns under normal use; loops until interrupted.
+#' The loop ends on an interrupt and nothing else, so a service stops the
+#' process with SIGINT. R has no handler for SIGTERM, and as a container's
+#' PID 1 the process gets no default action for it either, so SIGTERM is
+#' dropped and the runtime falls back to SIGKILL after its timeout. SIGINT
+#' is R's own interrupt: it is raised at the next safe point (the Matrix
+#' long-poll, the idle sleep, a routine's R code; a shell routine's child
+#' finishes first), unwound through \code{on.exit} handlers, and caught by
+#' the loop, so the process exits normally. That needs R's own signal
+#' handlers, which \code{Rscript} installs and littler's \code{r} does
+#' not (it sets \code{R_SignalHandlers = 0}): a service started with
+#' \code{r -e} drops the signal outside \code{Sys.sleep()} and ends in
+#' the runtime's SIGKILL after all.
+#'
+#' @return \code{NULL}, invisibly, once interrupted; until then it loops.
 #' @export
 run <- function(instance_dir, tick_seconds = 30L,
                 state_path = routines_state_path(basename(instance_dir)),
@@ -117,6 +130,18 @@ run <- function(instance_dir, tick_seconds = 30L,
         mtimeout <- .matrix_timeout(mcfg, tick_seconds)
     }
 
+    tryCatch(.run_loop(mstate, mtimeout, tick_seconds, state_path),
+             interrupt = function(i) {
+        message("cerebro: interrupted; stopping")
+    })
+    invisible(NULL)
+}
+
+# The scheduler loop: fire due routines, then wait out the tick in the
+# Matrix long-poll when there is one and in a sleep otherwise. Errors
+# in a step are reported and the loop goes on; only the interrupt run()
+# catches ends it.
+.run_loop <- function(mstate, mtimeout, tick_seconds, state_path) {
     repeat {
         tryCatch(tick_routines(state_path = state_path),
                  error = function(e) {
