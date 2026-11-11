@@ -1,3 +1,12 @@
+# cerebro 0.2.0.1
+
+- `ensure_matrix_space()` lowers the power level for filing a room under
+  a space it creates to the member level, so the other personas sharing
+  the space can file into it. The server's default reserved that for the
+  creator, and from room version 12 for the creator alone, so every
+  other persona's filing failed and fell back to the per-room invite the
+  space exists to remove.
+
 # cerebro 0.2.0
 
 - cerebro names no default LLM model. `briefing()`, `prepare_briefing()`,

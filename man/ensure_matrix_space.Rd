@@ -44,4 +44,11 @@ A space cannot be converted from an ordinary room afterwards --
 resolves to a non-space room is an error rather than something to
 repair in place.
 
+Personas share a space: one creates it and the others find it by name.
+Filing a room under a space is a state event on the space, which the
+server's default power levels reserve for the creator, so the creator
+lowers that one event to the member level right after creation. A
+space created elsewhere needs the same grant from whoever owns it, or
+every other persona's filing falls back to a per-room invite.
+
 }

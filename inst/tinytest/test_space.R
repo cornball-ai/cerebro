@@ -23,12 +23,19 @@ fake$created <- list()
 fake$state <- list()
 fake$invited <- list()
 fake$fail_join_rules <- FALSE
+# What the server sets on a fresh private_chat space: no users map, one
+# event level. The creator is not listed; from room version 12 its power
+# is implicit.
+fake$levels <- list(events = list(m.room.tombstone = 150L))
 
 cl <- matrix_client(
     user_id = "@bot:example.invalid",
     .channels = function(sess) names(fake$rooms),
     .info = list(name = function(sess, rid) fake$rooms[[rid]],
                  topic = function(sess, rid) NULL),
+    .get_state = function(sess, rid, type, state_key = "") {
+        if (identical(type, "m.room.power_levels")) fake$levels else NULL
+    },
     .invite = function(sess, rid, user_id) {
         fake$invited[[length(fake$invited) + 1L]] <-
         list(room = rid, user = user_id)
@@ -95,6 +102,21 @@ expect_equal(length(fake$created), 1L)
 expect_equal(fake$created[[1L]]$creation_content, list(type = "m.space"))
 # The one invite. This is the entire feature.
 expect_equal(fake$created[[1L]]$invite, "@owner:example.invalid")
+
+# ---- opened to filing by every member, at creation ---------------------
+# Personas share the space and only one of them creates it. m.space.child
+# is a state event: the default levels want 50 for it, the creator holds
+# that implicitly from room version 12, and every other member sits at 0.
+# So the second persona's every filing failed and fell back to the
+# per-room invite the space exists to remove. Only the creator can lower
+# the level, so it is lowered here or never.
+types <- vapply(fake$state, function(s) s$type, character(1L))
+expect_true("m.room.power_levels" %in% types)
+levels <- fake$state[[match("m.room.power_levels", types)]]
+expect_equal(levels$room, sid)
+expect_equal(levels$content$events[["m.space.child"]], 0L)
+# Merged into what the server had set, not written over it.
+expect_equal(levels$content$events[["m.room.tombstone"]], 150L)
 
 # Cached apart from matrix_rooms: a space and a room may share a display
 # name, and one cache hands back whichever was written last.
